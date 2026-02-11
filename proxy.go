@@ -249,6 +249,7 @@ func newReverseProxy(backendURL string, opts ...ProxyOption) (*httputil.ReverseP
 
 	proxy.Director = func(req *http.Request) {
 		baseDirector(req)
+		req.Host = target.Host
 
 		token, err := cfg.provider.ensureToken(req.Context())
 		if err != nil {
