@@ -48,12 +48,6 @@ type tokenProvider struct {
 	refresh   tokenRefreshFunc
 }
 
-func (p *tokenProvider) current() string {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	return p.token
-}
-
 func (p *tokenProvider) set(token string) {
 	p.mu.Lock()
 	p.token = token
