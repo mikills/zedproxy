@@ -20,7 +20,7 @@ func TestProxyInjectsBearerToken(t *testing.T) {
 	}))
 	t.Cleanup(backend.Close)
 
-	proxy, err := newReverseProxy(backend.URL, WithTokenFetcherFunc(func() string {
+	proxy, _, err := newReverseProxy(backend.URL, WithTokenFetcherFunc(func() string {
 		return "fresh-token"
 	}))
 	if err != nil {
@@ -53,7 +53,7 @@ func TestProxyHandlesTokenError(t *testing.T) {
 	}))
 	t.Cleanup(backend.Close)
 
-	proxy, err := newReverseProxy(backend.URL, WithTokenFetcherFunc(func() string {
+	proxy, _, err := newReverseProxy(backend.URL, WithTokenFetcherFunc(func() string {
 		return ""
 	}))
 	if err != nil {
@@ -99,7 +99,7 @@ func TestProxyRefreshesTokenOnUnauthorized(t *testing.T) {
 	}))
 	t.Cleanup(backend.Close)
 
-	proxy, err := newReverseProxy(
+	proxy, _, err := newReverseProxy(
 		backend.URL,
 		WithTokenFetcherFunc(func() string { return "bad-token" }),
 		WithTokenRefreshURL(tokenServer.URL),
@@ -150,7 +150,7 @@ func TestProxyStreamsResponse(t *testing.T) {
 	}))
 	t.Cleanup(backend.Close)
 
-	proxy, err := newReverseProxy(backend.URL, WithTokenFetcherFunc(func() string {
+	proxy, _, err := newReverseProxy(backend.URL, WithTokenFetcherFunc(func() string {
 		return "fresh-token"
 	}))
 	if err != nil {
