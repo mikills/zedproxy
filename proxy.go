@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"log"
+	"log/slog"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -211,14 +211,14 @@ func WithTokenRefreshURL(tokenURL string) ProxyOption {
 	}
 }
 
-func newReverseProxy(backendURL string, opts ...ProxyOption) (*httputil.ReverseProxy, error) {
+func newReverseProxy(backendURL string, opts ...ProxyOption) (*httputil.ReverseProxy, *tokenProvider, error) {
 	if strings.TrimSpace(backendURL) == "" {
-		return nil, errors.New("backend URL is required")
+		return nil, nil, errors.New("backend URL is required")
 	}
 
 	target, err := url.Parse(backendURL)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	cfg := proxyConfig{provider: &tokenProvider{}}
@@ -228,7 +228,7 @@ func newReverseProxy(backendURL string, opts ...ProxyOption) (*httputil.ReverseP
 	}
 
 	if cfg.provider.fetch == nil && cfg.provider.refresh == nil {
-		return nil, errors.New("token fetcher or refresh must be configured")
+		return nil, nil, errors.New("token fetcher or refresh must be configured")
 	}
 
 	if cfg.provider.fetch != nil {
@@ -265,11 +265,11 @@ func newReverseProxy(backendURL string, opts ...ProxyOption) (*httputil.ReverseP
 	}
 	proxy.FlushInterval = 100 * time.Millisecond
 	proxy.ErrorHandler = func(w http.ResponseWriter, req *http.Request, err error) {
-		log.Printf("proxy error: %v", err)
+		slog.Error("proxy error", "error", err, "path", req.URL.Path)
 		http.Error(w, "proxy error", http.StatusBadGateway)
 	}
 
-	return proxy, nil
+	return proxy, cfg.provider, nil
 }
 
 func fetchTokenFromURL(ctx context.Context, tokenURL string) (string, time.Duration, error) {
