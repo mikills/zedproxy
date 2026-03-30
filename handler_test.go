@@ -50,7 +50,7 @@ func TestHandler(t *testing.T) {
 			t.Error("fallback should not be called")
 		})
 
-		handler := newConvertHandler(backend.URL, provider, nil, fallback)
+		handler := newConvertHandler(backend.URL, provider, convertOpts{}, fallback)
 		server := httptest.NewServer(handler)
 		t.Cleanup(server.Close)
 
@@ -89,7 +89,7 @@ func TestHandler(t *testing.T) {
 		})
 
 		provider := &tokenProvider{token: "test-token"}
-		handler := newConvertHandler("http://unused", provider, nil, fallback)
+		handler := newConvertHandler("http://unused", provider, convertOpts{}, fallback)
 		server := httptest.NewServer(handler)
 		t.Cleanup(server.Close)
 
@@ -112,7 +112,7 @@ func TestHandler(t *testing.T) {
 		})
 
 		provider := &tokenProvider{token: "test-token"}
-		handler := newConvertHandler("http://unused", provider, nil, fallback)
+		handler := newConvertHandler("http://unused", provider, convertOpts{}, fallback)
 		server := httptest.NewServer(handler)
 		t.Cleanup(server.Close)
 
@@ -156,7 +156,7 @@ func TestHandler(t *testing.T) {
 		t.Cleanup(backend.Close)
 
 		provider := &tokenProvider{token: "test-token"}
-		handler := newConvertHandler(backend.URL, provider, nil, http.NotFoundHandler())
+		handler := newConvertHandler(backend.URL, provider, convertOpts{}, http.NotFoundHandler())
 		server := httptest.NewServer(handler)
 		t.Cleanup(server.Close)
 
@@ -248,8 +248,9 @@ func TestHandler(t *testing.T) {
 		t.Cleanup(backend.Close)
 
 		provider := &tokenProvider{token: "test-token"}
-		modelMap := map[string]string{"gpt-4o": "claude-sonnet-4-20250514"}
-		handler := newConvertHandler(backend.URL, provider, modelMap, http.NotFoundHandler())
+		handler := newConvertHandler(backend.URL, provider, convertOpts{
+			modelMap: map[string]string{"gpt-4o": "claude-sonnet-4-20250514"},
+		}, http.NotFoundHandler())
 		server := httptest.NewServer(handler)
 		t.Cleanup(server.Close)
 
@@ -262,6 +263,47 @@ func TestHandler(t *testing.T) {
 
 		if gotModel != "claude-sonnet-4-20250514" {
 			t.Errorf("model not mapped: got %q", gotModel)
+		}
+	})
+
+	t.Run("omit and add fields", func(t *testing.T) {
+		var gotBody map[string]any
+		backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			json.NewDecoder(r.Body).Decode(&gotBody)
+
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(anthropicResponse{
+				ID:         "msg-fields",
+				Type:       "message",
+				Role:       "assistant",
+				Content:    []contentBlock{{Type: "text", Text: "ok"}},
+				Model:      "claude-sonnet-4-20250514",
+				StopReason: "end_turn",
+				Usage:      anthropicUsage{InputTokens: 5, OutputTokens: 2},
+			})
+		}))
+		t.Cleanup(backend.Close)
+
+		provider := &tokenProvider{token: "test-token"}
+		handler := newConvertHandler(backend.URL, provider, convertOpts{
+			omitFields: []string{"model"},
+			addFields:  map[string]string{"anthropic_version": "2023-06-01"},
+		}, http.NotFoundHandler())
+		server := httptest.NewServer(handler)
+		t.Cleanup(server.Close)
+
+		body := `{"model":"claude-opus-4-6","messages":[{"role":"user","content":"Hello"}],"max_tokens":100}`
+		resp, err := http.Post(server.URL+"/v1/chat/completions", "application/json", strings.NewReader(body))
+		if err != nil {
+			t.Fatalf("request error: %v", err)
+		}
+		resp.Body.Close()
+
+		if _, ok := gotBody["model"]; ok {
+			t.Error("model field should have been omitted")
+		}
+		if v, ok := gotBody["anthropic_version"]; !ok || v != "2023-06-01" {
+			t.Errorf("anthropic_version field missing or wrong: %v", gotBody["anthropic_version"])
 		}
 	})
 }

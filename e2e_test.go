@@ -178,7 +178,9 @@ func e2eHandler(t *testing.T) *httptest.Server {
 	handler := newConvertHandler(
 		"https://api.anthropic.com",
 		provider,
-		map[string]string{"gpt-4o": "claude-haiku-4-5-20251001"},
+		convertOpts{
+			modelMap: map[string]string{"gpt-4o": "claude-haiku-4-5-20251001"},
+		},
 		http.NotFoundHandler(),
 	)
 	server := httptest.NewServer(handler)

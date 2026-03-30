@@ -12,7 +12,13 @@ import (
 	"time"
 )
 
-func newConvertHandler(backendURL string, provider *tokenProvider, modelMap map[string]string, fallback http.Handler) http.Handler {
+type convertOpts struct {
+	modelMap   map[string]string
+	omitFields []string
+	addFields  map[string]string
+}
+
+func newConvertHandler(backendURL string, provider *tokenProvider, opts convertOpts, fallback http.Handler) http.Handler {
 	backendURL = strings.TrimRight(backendURL, "/")
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -37,7 +43,7 @@ func newConvertHandler(backendURL string, provider *tokenProvider, modelMap map[
 			return
 		}
 
-		antReq := convertRequest(oaiReq, modelMap)
+		antReq := convertRequest(oaiReq, opts.modelMap)
 
 		slog.Info("request",
 			"model", oaiReq.Model,
@@ -50,6 +56,13 @@ func newConvertHandler(backendURL string, provider *tokenProvider, modelMap map[
 		antBody, err := json.Marshal(antReq)
 		if err != nil {
 			http.Error(w, "failed to marshal request", http.StatusInternalServerError)
+			return
+		}
+
+		antBody, err = applyFieldOverrides(antBody, opts.omitFields, opts.addFields)
+		if err != nil {
+			slog.Error("failed to apply field overrides", "error", err)
+			http.Error(w, "failed to process request", http.StatusInternalServerError)
 			return
 		}
 
@@ -380,4 +393,24 @@ func (s *streamState) processEvent(eventType string, data []byte) []openAIStream
 	default:
 		return nil
 	}
+}
+
+func applyFieldOverrides(body []byte, omit []string, add map[string]string) ([]byte, error) {
+	if len(omit) == 0 && len(add) == 0 {
+		return body, nil
+	}
+
+	var m map[string]any
+	if err := json.Unmarshal(body, &m); err != nil {
+		return nil, err
+	}
+
+	for _, field := range omit {
+		delete(m, field)
+	}
+	for k, v := range add {
+		m[k] = v
+	}
+
+	return json.Marshal(m)
 }
