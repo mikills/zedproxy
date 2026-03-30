@@ -75,7 +75,7 @@ func newConvertHandler(backendURL string, provider *tokenProvider, opts convertO
 }
 
 func doAnthropicRequest(r *http.Request, backendURL string, provider *tokenProvider, body []byte) (*http.Response, error) {
-	endpoint := backendURL + "/v1/messages"
+	endpoint := backendURL
 
 	req, err := http.NewRequestWithContext(r.Context(), http.MethodPost, endpoint, bytes.NewReader(body))
 	if err != nil {

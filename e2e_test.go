@@ -176,7 +176,7 @@ func e2eHandler(t *testing.T) *httptest.Server {
 
 	provider := &tokenProvider{token: apiKey}
 	handler := newConvertHandler(
-		"https://api.anthropic.com",
+		"https://api.anthropic.com/v1/messages",
 		provider,
 		convertOpts{
 			modelMap: map[string]string{"gpt-4o": "claude-haiku-4-5-20251001"},

@@ -10,10 +10,12 @@ import (
 	"testing"
 )
 
+var v1Endpoint = "/v1/messages"
+
 func TestHandler(t *testing.T) {
 	t.Run("non-streaming", func(t *testing.T) {
 		backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.URL.Path != "/v1/messages" {
+			if r.URL.Path != v1Endpoint {
 				t.Errorf("unexpected path: %s", r.URL.Path)
 			}
 			if r.Header.Get("anthropic-version") != "2023-06-01" {
@@ -50,7 +52,7 @@ func TestHandler(t *testing.T) {
 			t.Error("fallback should not be called")
 		})
 
-		handler := newConvertHandler(backend.URL, provider, convertOpts{}, fallback)
+		handler := newConvertHandler(backend.URL+v1Endpoint, provider, convertOpts{}, fallback)
 		server := httptest.NewServer(handler)
 		t.Cleanup(server.Close)
 
@@ -156,7 +158,7 @@ func TestHandler(t *testing.T) {
 		t.Cleanup(backend.Close)
 
 		provider := &tokenProvider{token: "test-token"}
-		handler := newConvertHandler(backend.URL, provider, convertOpts{}, http.NotFoundHandler())
+		handler := newConvertHandler(backend.URL+v1Endpoint, provider, convertOpts{}, http.NotFoundHandler())
 		server := httptest.NewServer(handler)
 		t.Cleanup(server.Close)
 
@@ -248,7 +250,7 @@ func TestHandler(t *testing.T) {
 		t.Cleanup(backend.Close)
 
 		provider := &tokenProvider{token: "test-token"}
-		handler := newConvertHandler(backend.URL, provider, convertOpts{
+		handler := newConvertHandler(backend.URL+v1Endpoint, provider, convertOpts{
 			modelMap: map[string]string{"gpt-4o": "claude-sonnet-4-20250514"},
 		}, http.NotFoundHandler())
 		server := httptest.NewServer(handler)
@@ -285,7 +287,7 @@ func TestHandler(t *testing.T) {
 		t.Cleanup(backend.Close)
 
 		provider := &tokenProvider{token: "test-token"}
-		handler := newConvertHandler(backend.URL, provider, convertOpts{
+		handler := newConvertHandler(backend.URL+v1Endpoint, provider, convertOpts{
 			omitFields: []string{"model"},
 			addFields:  map[string]string{"anthropic_version": "2023-06-01"},
 		}, http.NotFoundHandler())
